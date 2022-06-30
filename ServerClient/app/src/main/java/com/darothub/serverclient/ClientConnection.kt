@@ -68,20 +68,5 @@ class ClientConnection(val socket: Socket, val action:(String)->Unit) : Runnable
         return str
     }
 
-    companion object {
-        val state = MutableStateFlow<ServiceState>(ServiceState.Nothing)
-    }
-}
 
-sealed class ServiceState {
-    data class SocketData(val socket:Socket) : ServiceState()
-    data class ErrorState(val error:Exception): ServiceState()
-    object Nothing: ServiceState()
-}
-
-@OptIn(ExperimentalContracts::class)
-fun <T>assertNotNull(t:T?){
-    contract {
-        returns() implies (t != null)
-    }
 }

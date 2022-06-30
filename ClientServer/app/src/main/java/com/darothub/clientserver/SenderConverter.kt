@@ -29,3 +29,21 @@ class SenderConverter {
         }
     }
 }
+
+object Send {
+    fun sendMessage(socket:Socket?, message: String) {
+        try {
+            socket?.let {
+                val out = PrintWriter(
+                    BufferedWriter(
+                        OutputStreamWriter(it?.getOutputStream())
+                    ),
+                    true
+                )
+                out.println(message)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+}

@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
+import android.util.Log
 import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -17,6 +18,7 @@ import com.darothub.clientserver.databinding.ActivityMainBinding
 import com.darothub.clientserver.utils.CommunicationFrame
 import com.darothub.clientserver.utils.Constants
 import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Dispatchers.Main
 import kotlinx.coroutines.flow.collectLatest
 import viewBinding
@@ -36,6 +38,7 @@ class MainActivity : AppCompatActivity() {
     private val senderConverter by lazy { SenderConverter() }
     private val queueThread by lazy { HandlerThread("QueueThread") }
     private val queueHandler by lazy { Handler(queueThread.looper) }
+    private var connectionService:ConnectionService?=null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val view = binding.root
@@ -43,14 +46,22 @@ class MainActivity : AppCompatActivity() {
         title = "Server"
         handler = Handler(Looper.getMainLooper())
         queueThread.start()
-        lifecycleScope.launchWhenStarted {
+        lifecycleScope.launch {
             handleServiceState()
         }
         with(binding){
             startServer.setOnClickListener {
                 with(binding.msgList) { removeAllViews() }
                 showMessage("Server Started.", Color.BLACK)
-                startService(Intent(this@MainActivity, ConnectionService::class.java))
+                val serverSocket = ServerSocket(Constants.SERVER_PORT)
+                connectionService = ConnectionService(serverSocket) {
+                    Log.d("Main", "String")
+                    CoroutineScope(Main).launch {
+                        binding.startServer.visibility = View.GONE
+                    }
+                }
+                Thread(connectionService).start()
+
             }
             msgInputLayout.setEndIconOnClickListener {
                 val msg = msgInputEt.text.toString().trim { it <= ' ' }
@@ -65,7 +76,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private suspend fun handleServiceState() {
-        ConnectionService.state.collectLatest { state ->
+        ConnectionService.state.collect { state ->
             when (state) {
                 is ServiceState.SocketData -> {
                     withContext(Main) {
@@ -73,7 +84,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     val commThread = CommunicationFrame(state.socket) { read ->
                         val hex = convertMessageToHex(read)
-                        senderConverter(tempClientSocket, hex)
+                        Send.sendMessage(tempClientSocket, hex)
                         showMessage("ClientHex : $hex", Constants.green)
                     }
                     queueHandler.post(commThread)

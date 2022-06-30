@@ -48,16 +48,15 @@ class MainActivity : AppCompatActivity() {
         binding.sendData.setOnClickListener {
             val clientMessage = binding.edMessage.text.toString().trim { it <= ' ' }
             socket?.let { sock -> InputFrame(sock, senderConverter, clientMessage).start() }
-
             clientConnection = socket?.let { it1 ->
                 ClientConnection(it1) { readable->
                     showMessage("Server: $readable", Color.GREEN)
                 }
             }
             thread = Thread(clientConnection)
-            thread!!.start()
+            thread?.start()
             showMessage(clientMessage, Color.BLUE)
-            clientConnection?.sendMessage(clientMessage)
+//            clientConnection?.sendMessage(clientMessage)
         }
     }
 
@@ -80,6 +79,11 @@ class MainActivity : AppCompatActivity() {
     private fun getTime(): String? {
         val sdf = SimpleDateFormat("HH:mm:ss")
         return sdf.format(Date())
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        thread?.interrupt()
     }
 }
 
