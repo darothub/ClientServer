@@ -17,6 +17,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.darothub.clientserver.databinding.ActivityMainBinding
 import com.darothub.clientserver.utils.CommunicationFrame
 import com.darothub.clientserver.utils.Constants
+import com.darothub.clientserver.utils.convertHexStringToReadableMessage
 import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Dispatchers.Main
@@ -43,7 +44,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         val view = binding.root
         setContentView(view)
-        title = "Server"
+        title = "Application A"
         handler = Handler(Looper.getMainLooper())
         queueThread.start()
         lifecycleScope.launch {
@@ -52,7 +53,7 @@ class MainActivity : AppCompatActivity() {
         with(binding){
             startServer.setOnClickListener {
                 with(binding.msgList) { removeAllViews() }
-                showMessage("Server Started.", Color.BLACK)
+                showMessage("Application A started.", Color.BLACK)
                 val serverSocket = ServerSocket(Constants.SERVER_PORT)
                 connectionService = ConnectionService(serverSocket) {
                     Log.d("Main", "String")
@@ -66,7 +67,7 @@ class MainActivity : AppCompatActivity() {
             msgInputLayout.setEndIconOnClickListener {
                 val msg = msgInputEt.text.toString().trim { it <= ' ' }
                 val hex = convertMsgToHex(msg)
-                showMessage("Server : $hex", Color.BLUE)
+//                showMessage("Server : $hex", Color.BLUE)
                 tempClientSocket?.let {
                     InputFrame(it, senderConverter, hex).start()
                 }
@@ -82,10 +83,10 @@ class MainActivity : AppCompatActivity() {
                     withContext(Main) {
                         binding.startServer.visibility = View.GONE
                     }
-                    val commThread = CommunicationFrame(state.socket) { read ->
-                        val hex = convertMessageToHex(read)
-                        Send.sendMessage(tempClientSocket, hex)
-                        showMessage("ClientHex : $hex", Constants.green)
+                    val commThread = CommunicationFrame(state.socket) { hex ->
+                        val readable = convertHexStringToReadableMessage(hex)
+                        showMessage("Message : $readable", Constants.green)
+                        senderConverter(tempClientSocket, "$readable is read")
                     }
                     queueHandler.post(commThread)
                     tempClientSocket = state.socket
@@ -135,13 +136,6 @@ class MainActivity : AppCompatActivity() {
     private fun getTime(): String? {
         val sdf = SimpleDateFormat("HH:mm:ss")
         return sdf.format(Date())
-    }
-
-    private fun convertMessageToHex(message: String):String{
-        val ba = message.toByteArray()
-        val bn = BigInteger(ba)
-        val hexV = String.format("%x", bn)
-        return hexV
     }
     override fun onDestroy() {
         super.onDestroy()

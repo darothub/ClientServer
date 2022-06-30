@@ -26,10 +26,10 @@ class ClientConnection(val socket: Socket, val action:(String)->Unit) : Runnable
                     action(message)
                     break
                 }
-                if (message != null) {
-                    val readable = convertHexStringToReadableMessage(message)
-                    action(readable)
+                message?.let {
+                    action(it)
                 }
+
             }
         } catch (e1: UnknownHostException) {
             e1.printStackTrace()
@@ -37,36 +37,4 @@ class ClientConnection(val socket: Socket, val action:(String)->Unit) : Runnable
             e1.printStackTrace()
         }
     }
-
-    fun sendMessage(message: String?) {
-        Thread {
-            try {
-                if (null != socket) {
-                    val out = PrintWriter(
-                        BufferedWriter(
-                            OutputStreamWriter(socket?.getOutputStream())
-                        ),
-                        true
-                    )
-                    message
-                    out.println(message)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }.start()
-    }
-
-   private fun convertHexStringToReadableMessage(message: String): String {
-        Log.d("ConversionMessage", "$message")
-        val ba = message.decodeHex()
-        Log.d("ConversionBA", "$ba")
-        val bn = BigInteger(1, ba)
-        Log.d("ConversionBN", "$bn")
-        val str = String(bn.toByteArray())
-        Log.d("ConversionStr", "$str")
-        return str
-    }
-
-
 }

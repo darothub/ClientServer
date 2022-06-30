@@ -43,20 +43,18 @@ class MainActivity : AppCompatActivity() {
                 val serverAddr: InetAddress = InetAddress.getByName(Constants.SERVER_IP)
                 socket = Socket(serverAddr, Constants.SERVER_PORT)
             }
-            showMessage("Connected to Server...", Color.RED)
+            showMessage("Connected to Application B...", Color.RED)
         }
         binding.sendData.setOnClickListener {
             val clientMessage = binding.edMessage.text.toString().trim { it <= ' ' }
             socket?.let { sock -> InputFrame(sock, senderConverter, clientMessage).start() }
-            clientConnection = socket?.let { it1 ->
-                ClientConnection(it1) { readable->
+            clientConnection = socket?.let { sock ->
+                ClientConnection(sock) { readable->
                     showMessage("Server: $readable", Color.GREEN)
                 }
             }
             thread = Thread(clientConnection)
             thread?.start()
-            showMessage(clientMessage, Color.BLUE)
-//            clientConnection?.sendMessage(clientMessage)
         }
     }
 
@@ -84,6 +82,7 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         thread?.interrupt()
+        thread = null
     }
 }
 
