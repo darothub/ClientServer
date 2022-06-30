@@ -26,6 +26,7 @@ class NotificationHelper(val context: Context) {
             .setContentText(message)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setAutoCancel(true)
             .build()
 
     @RequiresApi(Build.VERSION_CODES.O)

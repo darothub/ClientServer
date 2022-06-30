@@ -14,7 +14,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentTop="true"
-        android:text="Connect to server" />
+        android:text="Connect to Application B" />
 
     <EditText
         android:id="@+id/edMessage"
