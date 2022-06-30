@@ -7,8 +7,13 @@ import android.os.Handler
 import android.util.Log
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.darothub.serverclient.databinding.ActivityMainBinding
 import com.darothub.serverclient.utils.Constants
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import viewBinding
 import java.io.*
 import java.math.BigInteger
@@ -24,27 +29,36 @@ class MainActivity : AppCompatActivity() {
     private var clientConnection:ClientConnection?=null
     private var thread: Thread? = null
     private var handler: Handler? = null
+    private var socket:Socket? = null
+    private val senderConverter by lazy { SenderConverter() }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val view = binding.root
         setContentView(view)
         handler = Handler()
+
         binding.connectServer.setOnClickListener {
             binding.msgList.removeAllViews()
-            showMessage("Connecting to Server...", Color.RED)
-            clientConnection = ClientConnection {readable->
-                showMessage("Server: $readable", Color.GREEN)
+            CoroutineScope(IO).launch {
+                val serverAddr: InetAddress = InetAddress.getByName(Constants.SERVER_IP)
+                socket = Socket(serverAddr, Constants.SERVER_PORT)
             }
-            thread = Thread(clientConnection)
-            thread!!.start()
             showMessage("Connected to Server...", Color.RED)
         }
         binding.sendData.setOnClickListener {
             val clientMessage = binding.edMessage.text.toString().trim { it <= ' ' }
+            socket?.let { sock -> InputFrame(sock, senderConverter, clientMessage).start() }
+
+            clientConnection = socket?.let { it1 ->
+                ClientConnection(it1) { readable->
+                    showMessage("Server: $readable", Color.GREEN)
+                }
+            }
+            thread = Thread(clientConnection)
+            thread!!.start()
             showMessage(clientMessage, Color.BLUE)
             clientConnection?.sendMessage(clientMessage)
         }
-
     }
 
     @SuppressLint("SetTextI18n")
@@ -68,3 +82,5 @@ class MainActivity : AppCompatActivity() {
         return sdf.format(Date())
     }
 }
+
+

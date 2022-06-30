@@ -13,7 +13,6 @@ class SenderConverter {
     operator fun invoke(socket:Socket?, message: String){
         sendMessage(socket, message)
     }
-
     private fun sendMessage(socket:Socket?, message: String) {
         try {
             socket?.let {

@@ -6,12 +6,16 @@ import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
+import android.os.HandlerThread
+import android.os.Looper
 import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.darothub.clientserver.databinding.ActivityMainBinding
+import com.darothub.clientserver.utils.CommunicationFrame
+import com.darothub.clientserver.utils.Constants
 import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers.Main
 import kotlinx.coroutines.flow.collectLatest
@@ -26,35 +30,35 @@ import kotlin.concurrent.thread
 
 class MainActivity : AppCompatActivity() {
     private val binding by viewBinding(ActivityMainBinding::inflate)
-    private var serverSocket: ServerSocket? = null
     private var tempClientSocket: Socket? = null
     var serverThread: Thread? = null
-    var SERVER_PORT = 5000
     private var handler: Handler? = null
-    private var greenColor = 0
     private val senderConverter by lazy { SenderConverter() }
+    private val queueThread by lazy { HandlerThread("QueueThread") }
+    private val queueHandler by lazy { Handler(queueThread.looper) }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val view = binding.root
         setContentView(view)
         title = "Server"
-        greenColor = ContextCompat.getColor(this, R.color.black)
-        handler = Handler()
-
+        handler = Handler(Looper.getMainLooper())
+        queueThread.start()
+        lifecycleScope.launchWhenStarted {
+            handleServiceState()
+        }
         with(binding){
             startServer.setOnClickListener {
                 with(binding.msgList) { removeAllViews() }
                 showMessage("Server Started.", Color.BLACK)
                 startService(Intent(this@MainActivity, ConnectionService::class.java))
-               lifecycleScope.launch {
-                   handleServiceState()
-               }
             }
-            sendData.setOnClickListener {
-                val msg = edMessage.text.toString().trim { it <= ' ' }
-                showMessage("Server : $msg", Color.BLUE)
-//                senderConverter(tempClientSocket, msg)
-                sendMessage(msg)
+            msgInputLayout.setEndIconOnClickListener {
+                val msg = msgInputEt.text.toString().trim { it <= ' ' }
+                val hex = convertMsgToHex(msg)
+                showMessage("Server : $hex", Color.BLUE)
+                tempClientSocket?.let {
+                    InputFrame(it, senderConverter, hex).start()
+                }
             }
         }
 
@@ -67,18 +71,17 @@ class MainActivity : AppCompatActivity() {
                     withContext(Main) {
                         binding.startServer.visibility = View.GONE
                     }
-                    val commThread = InputFrame(state.socket) { read ->
+                    val commThread = CommunicationFrame(state.socket) { read ->
                         val hex = convertMessageToHex(read)
                         senderConverter(tempClientSocket, hex)
-//                        sendMessage(hex)
-                        showMessage("ClientHex : $hex", greenColor)
+                        showMessage("ClientHex : $hex", Constants.green)
                     }
-                    Thread(commThread).start()
+                    queueHandler.post(commThread)
                     tempClientSocket = state.socket
-                    showMessage("Connected to Client!!", greenColor)
+                    showMessage("Connected to Client!!", Constants.green)
                 }
                 is ServiceState.ErrorState ->
-                    showMessage("Error Communicating to Client :" + state.error, Color.RED)
+                    showMessage("Error Communicating to Client :" + state.error, Constants.red)
                 else -> {}
             }
         }
@@ -140,19 +143,24 @@ class MainActivity : AppCompatActivity() {
 }
 
 fun main(){
-    val str = "sup"
-    val ba = str.toByteArray()
-    println("byteArray $ba")
-    val bn = BigInteger(1, ba)
-    println("bigNumber $bn")
-    val hexV = String.format("%x", bn)
-    println("Hex $hexV")
+    val hexV =  convertMsgToHex("hey")
+    println("HexV $hexV")
     val ba1 = hexV.decodeHex()
     println("ba1 $ba1")
     val bn1 = BigInteger(1, ba1)
     println("bn1 $bn1")
     val str1 = String(bn1.toByteArray())
     println(str1)
+}
+
+fun convertMsgToHex(message: String):String{
+    val ba = message.toByteArray()
+    println("byteArray $ba")
+    val bn = BigInteger(1, ba)
+    println("bigNumber $bn")
+    val hexV = String.format("%x", bn)
+    println("Hex $hexV")
+    return  hexV
 }
 
 fun String.decodeHex(): ByteArray {

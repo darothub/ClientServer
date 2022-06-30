@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.IBinder
 import android.util.Log
 import com.darothub.clientserver.utils.Constants
+import kotlinx.coroutines.Runnable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.IOException
@@ -15,15 +16,14 @@ class ConnectionService  : Service() {
     private var serverSocket: ServerSocket? = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         try {
-            Log.d("Service", "Started1")
             serverSocket = ServerSocket(Constants.SERVER_PORT)
         } catch (e: IOException) {
             e.printStackTrace()
         }
-
         if (null != serverSocket) {
             Thread {
-                while (!Thread.currentThread().isInterrupted) {
+                while (true) {
+                    Log.d("Service", "StartedUP")
                     try {
                         val socket = serverSocket?.accept()!!
                         Log.d("Service", "Started")
@@ -35,7 +35,6 @@ class ConnectionService  : Service() {
                     }
                 }
             }.start()
-
         }
         return super.onStartCommand(intent, flags, startId)
     }
